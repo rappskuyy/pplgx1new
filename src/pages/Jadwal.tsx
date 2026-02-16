@@ -17,7 +17,11 @@ function getMingguAkademik(date: Date): "ganjil" | "genap" {
 export default function Jadwal() {
   const today = new Date();
   const [minggu, setMinggu] = useState<"ganjil" | "genap">(getMingguAkademik(today));
-  const [hari, setHari] = useState("Senin");
+  const initialHari = (() => {
+    const dow = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    return dow >= 1 && dow <= 5 ? daysOfWeek[dow - 1] : "Senin";
+  })();
+  const [hari, setHari] = useState(initialHari);
   const { data: allSchedules = [], isLoading } = useSchedules(minggu);
   const schedule = allSchedules.filter((s) => s.hari === hari);
 

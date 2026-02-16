@@ -94,7 +94,7 @@ export default function Infaq() {
     <PageTransition>
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Infaq Rombel</h1>
-        <p className="text-muted-foreground">Catatan infaq rombe PPLG X-1</p>
+        <p className="text-muted-foreground">Catatan infaq rombel PPLG X-1</p>
       </div>
 
       {/* Summary Cards */}

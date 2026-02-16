@@ -60,8 +60,8 @@ export default function Tugas() {
   return (
     <PageTransition>
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Tugas Kelas</h1>
-        <p className="text-muted-foreground">Kelola dan pantau tugas kelas PPLG X-1</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Tugas Rombel</h1>
+        <p className="text-muted-foreground">Kelola dan pantau tugas rombel PPLG X-1</p>
       </div>
 
       {/* Stats */}

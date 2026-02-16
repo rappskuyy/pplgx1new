@@ -19,8 +19,8 @@ export default function Siswa() {
   return (
     <PageTransition>
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Data Siswa</h1>
-        <p className="text-muted-foreground">Daftar seluruh siswa kelas PPLG X-1</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Data Rombel</h1>
+        <p className="text-muted-foreground">Daftar seluruh siswa rombel PPLG X-1</p>
       </div>
 
       <div className="flex justify-center mb-8">

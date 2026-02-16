@@ -19,10 +19,10 @@ export default function Struktur() {
       <div className="text-center mb-10">
         <Crown size={40} className="mx-auto mb-3 text-primary" />
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          Struktur Organisasi Kelas
+          Struktur Organisasi Rombel
         </h1>
         <p className="text-muted-foreground">
-          Pengurus Kelas PPLG X-1 Tahun Ajaran 2024/2025
+          Pengurus Rombel PPLG X-1 Tahun Ajaran 2025/2026
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export default function Struktur() {
 }
 
 interface StrukturCardProps {
-  data: { id: string; jabatan: string; nama: string; foto: string | null };
+  data: { id: string; jabatan: string; nama: string; avatar_url: string | null };
   index: number;
   featured?: boolean;
 }
