@@ -18,6 +18,7 @@ export interface Siswa {
   gender: string;
   no_absen: number;
   avatar_url: string | null;
+  badge?: string;
 }
 
 export interface Schedule {
@@ -97,7 +98,7 @@ export function useSiswa() {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, nama, gender, no_absen, avatar_url")
+          .select("id, nama, gender, no_absen, avatar_url, badge")
           .order("no_absen");
         if (error) throw error;
         if (data && data.length > 0) return data as Siswa[];

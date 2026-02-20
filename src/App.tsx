@@ -17,6 +17,7 @@ import Tentang from "./pages/Tentang";
 import Struktur from "./pages/Struktur";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import ChatKelas from "./pages/ChatKelas";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/galeri" element={<Galeri />} />
               <Route path="/tentang" element={<Tentang />} />
               <Route path="/struktur" element={<Struktur />} />
+              <Route path="/chat" element={<ChatKelas />} />
               <Route path="/login" element={<Login />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -78,6 +78,11 @@ export default function Siswa() {
                 }`}>
                   {s.gender === "L" ? "👦 Laki-laki" : "👧 Perempuan"}
                 </span>
+                {s.badge && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+            ⚡ {s.badge.toUpperCase()}
+             </span>
+                )}
               </div>
             </motion.div>
           ))}
