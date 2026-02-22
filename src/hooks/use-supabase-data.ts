@@ -102,7 +102,6 @@ export function useSiswa() {
           .order("no_absen");
         if (error) throw error;
         if (data && data.length > 0) return data as Siswa[];
-        // Fallback to mock data if empty
         return mockSiswa as unknown as Siswa[];
       } catch (err) {
         console.warn("Supabase fetch failed, using mock data:", err);
@@ -124,7 +123,6 @@ export function useSchedules(minggu: string) {
           .order("urutan");
         if (error) throw error;
         if (data && data.length > 0) return data as Schedule[];
-        // Fallback to mock data
         const mockSchedules = (mockJadwal[minggu as keyof typeof mockJadwal] || {});
         return Object.entries(mockSchedules).flatMap(([hari, items]) =>
           items.map((item, idx) => ({
@@ -167,7 +165,6 @@ export function useTasks() {
           .order("deadline");
         if (error) throw error;
         if (data && data.length > 0) return data as Task[];
-        // Fallback to mock data
         return mockTugas.map((task) => ({
           id: String(task.id),
           judul: task.judul,
@@ -198,29 +195,44 @@ export function useInfaq() {
     queryKey: ["infaq"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
+        // Pakai dua query terpisah untuk menghindari error join RLS
+        const { data: infaqRows, error: infaqError } = await supabase
           .from("infaq_transactions")
-          .select("id, siswa_id, nominal, tanggal, created_at, profiles:siswa_id(nama)")
+          .select("id, siswa_id, nominal, tanggal, created_at")
           .order("tanggal", { ascending: false });
-        if (error) throw error;
-        if (data && data.length > 0) {
-          return data.map((item: any) => ({
-            id: item.id,
-            siswa_id: item.siswa_id,
-            siswa_nama: item.profiles?.nama || "Unknown",
+
+        if (infaqError) throw infaqError;
+
+        if (!infaqRows || infaqRows.length === 0) {
+          return mockInfaq.map((item) => ({
+            id: String(item.id),
+            siswa_id: String(item.id),
+            siswa_nama: item.siswa,
             nominal: item.nominal,
             tanggal: item.tanggal,
-            created_at: item.created_at,
+            created_at: new Date().toISOString(),
           })) as InfaqTransaction[];
         }
-        // Fallback to mock data
-        return mockInfaq.map((item) => ({
-          id: String(item.id),
-          siswa_id: String(item.id),
-          siswa_nama: item.siswa,
+
+        // Ambil semua siswa_id unik lalu fetch nama-nya
+        const siswaIds = [...new Set(infaqRows.map((r) => r.siswa_id))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, nama")
+          .in("id", siswaIds);
+
+        const namaMap: Record<string, string> = {};
+        (profiles || []).forEach((p: any) => {
+          namaMap[p.id] = p.nama;
+        });
+
+        return infaqRows.map((item) => ({
+          id: item.id,
+          siswa_id: item.siswa_id,
+          siswa_nama: namaMap[item.siswa_id] || "Unknown",
           nominal: item.nominal,
           tanggal: item.tanggal,
-          created_at: new Date().toISOString(),
+          created_at: item.created_at,
         })) as InfaqTransaction[];
       } catch (err) {
         console.warn("Infaq fetch failed, using mock data:", err);
@@ -242,31 +254,50 @@ export function useGroups() {
     queryKey: ["groups"],
     queryFn: async () => {
       try {
+        // Step 1: Fetch groups
         const { data: groups, error: gError } = await supabase
           .from("groups")
-          .select("*")
+          .select("id, nama")
           .order("id");
+
         if (gError) throw gError;
-
-        const { data: members, error: mError } = await supabase
-          .from("group_members")
-          .select("id, group_id, profile_id, profiles:profile_id(nama)");
-        if (mError) throw mError;
-
-        if ((groups as Group[])?.length > 0) {
-          return (groups as Group[]).map((g) => ({
-            ...g,
-            anggota: (members as any[])
-              .filter((m) => m.group_id === g.id)
-              .map((m) => m.profiles?.nama || "Unknown"),
+        if (!groups || groups.length === 0) {
+          return mockKelompok.map((group) => ({
+            id: String(group.id),
+            nama: group.nama,
+            anggota: group.anggota,
+            mapel: (group as any).mapel || [],
           })) as GroupWithMembers[];
         }
-        // Fallback to mock data
-        return mockKelompok.map((group) => ({
-          id: String(group.id),
-          nama: group.nama,
-          anggota: group.anggota,
-          mapel: (group as any).mapel || [],
+
+        // Step 2: Fetch group_members tanpa join (hindari RLS join issue)
+        const { data: members, error: mError } = await supabase
+          .from("group_members")
+          .select("id, group_id, profile_id");
+
+        if (mError) throw mError;
+
+        // Step 3: Fetch nama dari profiles berdasarkan profile_id yang ada
+        let namaMap: Record<string, string> = {};
+        if (members && members.length > 0) {
+          const profileIds = [...new Set(members.map((m: any) => m.profile_id))];
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, nama")
+            .in("id", profileIds);
+
+          (profiles || []).forEach((p: any) => {
+            namaMap[p.id] = p.nama;
+          });
+        }
+
+        // Step 4: Gabungkan
+        return (groups as Group[]).map((g) => ({
+          ...g,
+          anggota: (members || [])
+            .filter((m: any) => m.group_id === g.id)
+            .map((m: any) => namaMap[m.profile_id] || "Unknown"),
+          mapel: (g as any).mapel || [],
         })) as GroupWithMembers[];
       } catch (err) {
         console.warn("Groups fetch failed, using mock data:", err);
@@ -278,6 +309,9 @@ export function useGroups() {
         })) as GroupWithMembers[];
       }
     },
+    // Retry 1x saja supaya tidak loading lama kalau memang error
+    retry: 1,
+    retryDelay: 1000,
   });
 }
 
@@ -292,7 +326,6 @@ export function useQuotes() {
           .order("id");
         if (error) throw error;
         if (data && data.length > 0) return data as QuoteItem[];
-        // Fallback to mock data
         return mockQuotes.map((quote) => ({
           id: String(quote.id),
           text: quote.text,
@@ -321,7 +354,6 @@ export function useGallery() {
           .order("created_at", { ascending: false });
         if (error) throw error;
         if (data && data.length > 0) return data as GalleryItem[];
-        // Fallback to mock data
         return mockGaleri as GalleryItem[];
       } catch (err) {
         console.warn("Gallery fetch failed, using mock data:", err);
@@ -342,7 +374,6 @@ export function useStruktur() {
           .order("urutan");
         if (error) throw error;
         if (data && data.length > 0) return data as StrukturItem[];
-        // Fallback to mock data
         return mockStruktur.map((item, idx) => ({
           id: String(idx + 1),
           jabatan: item.jabatan,

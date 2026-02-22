@@ -19,6 +19,7 @@ export default function Infaq() {
 
   const [showForm, setShowForm] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState({ siswa_id: "", nominal: "", tanggal: "" });
   const { data: siswaList = [] } = useSiswa();
   const [sortOption, setSortOption] = useState<SortOption>("nominal-desc");
@@ -27,10 +28,8 @@ export default function Infaq() {
   const totalTransaksi = infaqData.length;
   const uniqueSiswa = new Set(infaqData.map((i) => i.siswa_nama)).size;
 
-  // Memoize siswaList untuk menghindari refetch berulang
   const memoSiswaList = useMemo(() => siswaList, [siswaList]);
 
-  // Build ranking with transaction count
   const rankingData = useMemo(() => {
     const map: Record<string, { total: number; count: number }> = {};
     infaqData.forEach((i) => {
@@ -51,29 +50,59 @@ export default function Infaq() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.siswa_id || !form.nominal || !form.tanggal) { toast.error("Semua field wajib diisi"); return; }
+    if (!form.siswa_id || !form.nominal || !form.tanggal) {
+      toast.error("Semua field wajib diisi");
+      return;
+    }
+    if (!user) {
+      toast.error("Kamu harus login sebagai admin");
+      return;
+    }
     setFormLoading(true);
     const { error } = await supabase.from("infaq_transactions").insert({
-      siswa_id: form.siswa_id, nominal: Number(form.nominal), tanggal: form.tanggal,
+      siswa_id: form.siswa_id,
+      nominal: Number(form.nominal),
+      tanggal: form.tanggal,
     });
-    if (error) { toast.error(error.message); } else {
+    if (error) {
+      toast.error(`Gagal menambahkan: ${error.message}`);
+    } else {
       toast.success("Infaq berhasil ditambahkan!");
       setForm({ siswa_id: "", nominal: "", tanggal: "" });
       setShowForm(false);
-      // Invalidate only infaq query untuk menghindari refetch seluruh data
       await queryClient.invalidateQueries({ queryKey: ["infaq"] });
     }
     setFormLoading(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus data infaq ini?")) return;
-    const { error } = await supabase.from("infaq_transactions").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else { 
-      toast.success("Data infaq dihapus"); 
-      await queryClient.invalidateQueries({ queryKey: ["infaq"] });
+  const handleDelete = async (id: string, nama: string) => {
+    if (!user) {
+      toast.error("Kamu harus login sebagai admin");
+      return;
     }
+    if (!confirm(`Hapus data infaq dari ${nama}?`)) return;
+
+    setDeletingId(id);
+
+    // Optimistic update: hapus dari cache dulu
+    queryClient.setQueryData(["infaq"], (old: any[]) =>
+      (old || []).filter((item) => item.id !== id)
+    );
+
+    const { error } = await supabase
+      .from("infaq_transactions")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      // Rollback optimistic update jika gagal
+      toast.error(`Gagal menghapus: ${error.message}. Cek RLS policy di Supabase (admin harus punya permission DELETE).`);
+      await queryClient.invalidateQueries({ queryKey: ["infaq"] });
+    } else {
+      toast.success("Data infaq dihapus");
+    }
+
+    setDeletingId(null);
   };
 
   if (isLoading) return <PageTransition><InfaqSkeleton /></PageTransition>;
@@ -137,35 +166,64 @@ export default function Infaq() {
       {/* Admin Add */}
       {isAdmin && (
         <div className="mb-4">
-          <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
             {showForm ? <X size={16} /> : <Plus size={16} />}
             {showForm ? "Batal" : "Tambah Infaq"}
           </button>
         </div>
       )}
+
       {showForm && isAdmin && (
         <form onSubmit={handleAdd} className="mb-6 rounded-xl bg-card border border-border p-6 shadow-md space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-1">Nama Siswa *</label>
-                <select value={form.siswa_id} onChange={(e) => setForm({ ...form, siswa_id: e.target.value })} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" required>
-                  <option value="">Pilih siswa...</option>
-                  {memoSiswaList.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.no_absen ? `${s.no_absen} - ${s.nama}` : s.nama}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">Nama Siswa *</label>
+              <select
+                value={form.siswa_id}
+                onChange={(e) => setForm({ ...form, siswa_id: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                required
+              >
+                <option value="">Pilih siswa...</option>
+                {memoSiswaList.map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.no_absen ? `${s.no_absen} - ${s.nama}` : s.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="text-sm font-medium text-foreground block mb-1">Nominal (Rp) *</label>
-              <input type="number" value={form.nominal} onChange={(e) => setForm({ ...form, nominal: e.target.value })} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" required />
+              <input
+                type="number"
+                min="0"
+                value={form.nominal}
+                onChange={(e) => setForm({ ...form, nominal: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                required
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground block mb-1">Tanggal *</label>
-              <input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground" required />
+              <input
+                type="date"
+                value={form.tanggal}
+                onChange={(e) => setForm({ ...form, tanggal: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                required
+              />
             </div>
           </div>
-          <button type="submit" disabled={formLoading} className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-2">
-            {formLoading && <Loader2 size={14} className="animate-spin" />} Simpan
+          <button
+            type="submit"
+            disabled={formLoading}
+            className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-2"
+          >
+            {formLoading && <Loader2 size={14} className="animate-spin" />}
+            Simpan
           </button>
         </form>
       )}
@@ -186,15 +244,33 @@ export default function Infaq() {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {infaqData.map((inf, i) => (
-                  <motion.div key={inf.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.01 }} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                  <motion.div
+                    key={inf.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.01 }}
+                    className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
+                  >
                     <div>
                       <p className="font-medium text-foreground text-sm">{inf.siswa_nama}</p>
                       <p className="text-xs text-muted-foreground">{inf.tanggal}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm" style={{ color: "hsl(var(--success))" }}>Rp {inf.nominal.toLocaleString("id-ID")}</span>
+                      <span className="font-bold text-sm" style={{ color: "hsl(var(--success))" }}>
+                        Rp {inf.nominal.toLocaleString("id-ID")}
+                      </span>
                       {isAdmin && (
-                        <button onClick={() => handleDelete(inf.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 size={14} /></button>
+                        <button
+                          onClick={() => handleDelete(inf.id, inf.siswa_nama)}
+                          disabled={deletingId === inf.id}
+                          className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                          title="Hapus infaq"
+                        >
+                          {deletingId === inf.id
+                            ? <Loader2 size={14} className="animate-spin" />
+                            : <Trash2 size={14} />
+                          }
+                        </button>
                       )}
                     </div>
                   </motion.div>
@@ -235,15 +311,25 @@ export default function Infaq() {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {rankingData.map((r, i) => (
-                  <motion.div key={r.nama} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.01 }} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                  <motion.div
+                    key={r.nama}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.01 }}
+                    className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
+                  >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">{i + 1}</span>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        {i + 1}
+                      </span>
                       <div>
                         <p className="font-medium text-foreground text-sm">{r.nama}</p>
                         <p className="text-xs text-muted-foreground">{r.count} transaksi</p>
                       </div>
                     </div>
-                    <span className="font-bold text-sm" style={{ color: "hsl(var(--success))" }}>Rp {r.total.toLocaleString("id-ID")}</span>
+                    <span className="font-bold text-sm" style={{ color: "hsl(var(--success))" }}>
+                      Rp {r.total.toLocaleString("id-ID")}
+                    </span>
                   </motion.div>
                 ))}
               </div>
@@ -264,12 +350,26 @@ function InfaqSkeleton() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="shadow-md"><CardContent className="flex items-center gap-4 p-5"><Skeleton className="h-12 w-12 rounded-xl" /><div className="space-y-2"><Skeleton className="h-6 w-32" /><Skeleton className="h-4 w-20" /></div></CardContent></Card>
+          <Card key={i} className="shadow-md">
+            <CardContent className="flex items-center gap-4 p-5">
+              <Skeleton className="h-12 w-12 rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Card key={i} className="shadow-md"><CardContent className="p-6 space-y-3">{Array.from({ length: 4 }).map((_, j) => <Skeleton key={j} className="h-12 w-full rounded-lg" />)}</CardContent></Card>
+          <Card key={i} className="shadow-md">
+            <CardContent className="p-6 space-y-3">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <Skeleton key={j} className="h-12 w-full rounded-lg" />
+              ))}
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>
