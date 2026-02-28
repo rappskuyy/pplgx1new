@@ -12,6 +12,7 @@ import Tugas from "./pages/Tugas";
 import Infaq from "./pages/Infaq";
 import Kelompok from "./pages/Kelompok";
 import FloatingChatButton from "@/components/ui/FloatingChatButton";
+import AIChatBot from "@/components/ui/AIChatBot";
 import Galeri from "./pages/Galeri";
 import Tentang from "./pages/Tentang";
 import Struktur from "./pages/Struktur";
@@ -19,6 +20,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Karya from "./pages/Karya";
 import Pengumuman from "./pages/Pengumuman";
+import ProfilePage from "./pages/ProfilePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,12 +51,16 @@ const App = () => (
               <Route path="/tentang" element={<Tentang />} />
               <Route path="/struktur" element={<Struktur />} />
               <Route path="/karya" element={<Karya />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/login" element={<Login />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
-          {/* FAB Chat — muncul di semua halaman */}
-          <FloatingChatButton />
+          {/* FAB Group — sejajar pojok kanan bawah */}
+          <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-3">
+            <AIChatBot />
+            <FloatingChatButton />
+          </div>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

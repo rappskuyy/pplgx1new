@@ -3,18 +3,47 @@ import { Search, User as UserIcon, Loader2, AlertCircle, Users } from "lucide-re
 import { motion } from "framer-motion";
 import PageTransition from "@/components/PageTransition";
 import { useSiswa } from "@/hooks/use-supabase-data";
+import SiswaDetailPanel from "@/components/ui/SiswaDetailPanel";
+import { supabase } from "@/lib/supabase";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 const item = { hidden: { opacity: 0, scale: 0.95 }, show: { opacity: 1, scale: 1 } };
 
+interface SiswaProfile {
+  id: string;
+  nama: string;
+  gender: string;
+  no_absen: number;
+  avatar_url: string | null;
+  badge?: string;
+  bio?: string | null;
+  hobi?: string | null;
+  instagram?: string | null;
+  whatsapp?: string | null;
+  motto?: string | null;
+}
+
 export default function Siswa() {
   const [search, setSearch] = useState("");
+  const [selectedSiswa, setSelectedSiswa] = useState<SiswaProfile | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const { data: siswaData = [], isLoading, isError, error } = useSiswa();
 
   const filtered = siswaData.filter((s) =>
     s.nama?.toLowerCase().includes(search.toLowerCase()) ||
     String(s.no_absen).includes(search)
   );
+
+  const handleCardClick = async (siswa: SiswaProfile) => {
+    setLoadingId(siswa.id);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, nama, gender, no_absen, avatar_url, badge, bio, hobi, instagram, whatsapp, motto")
+      .eq("id", siswa.id)
+      .single();
+    setSelectedSiswa(data || siswa);
+    setLoadingId(null);
+  };
 
   return (
     <PageTransition>
@@ -59,8 +88,16 @@ export default function Siswa() {
             <motion.div
               key={s.id}
               variants={item}
-              className="relative rounded-xl bg-card border border-border shadow-md overflow-hidden hover:scale-105 transition-transform"
+              onClick={() => handleCardClick(s)}
+              className="relative rounded-xl bg-card border border-border shadow-md overflow-hidden hover:scale-105 hover:shadow-lg transition-all cursor-pointer"
             >
+              {/* Loading overlay */}
+              {loadingId === s.id && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/70 backdrop-blur-sm rounded-xl">
+                  <Loader2 size={20} className="animate-spin text-primary" />
+                </div>
+              )}
+
               <span className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
                 {s.no_absen}
               </span>
@@ -79,15 +116,22 @@ export default function Siswa() {
                   {s.gender === "L" ? "👦 Laki-laki" : "👧 Perempuan"}
                 </span>
                 {s.badge && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
-            ⚡ {s.badge.toUpperCase()}
-             </span>
+                  <span className="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                    ⚡ {s.badge.toUpperCase()}
+                  </span>
                 )}
+                <p className="mt-3 text-[10px] text-muted-foreground/50">Tap untuk lihat profil</p>
               </div>
             </motion.div>
           ))}
         </motion.div>
       )}
+
+  {/* Slide Panel */}
+      <SiswaDetailPanel
+        siswa={selectedSiswa}
+        onClose={() => setSelectedSiswa(null)}
+      />
     </PageTransition>
   );
 }

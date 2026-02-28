@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2, Smile, Reply, Trash2, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence, useDragControls } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
@@ -33,7 +33,6 @@ export default function FloatingChatButton() {
   const [unreadCount, setUnreadCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dragControls = useDragControls();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Check admin
@@ -171,16 +170,7 @@ export default function FloatingChatButton() {
   return (
     <>
       <motion.div
-        drag
-        dragControls={dragControls}
-        dragMomentum={false}
-        dragElastic={0.1}
-        onDragStart={() => setIsDragging(true)}
-        onDragEnd={() => setTimeout(() => setIsDragging(false), 100)}
-        initial={{ x: 0, y: 0 }}
-        className="fixed bottom-6 right-6 z-50 select-none"
-        style={{ touchAction: "none" }}
-      >
+        className="relative select-none">
         {/* Chat Panel */}
         <AnimatePresence>
           {isOpen && (
@@ -188,8 +178,11 @@ export default function FloatingChatButton() {
               initial={{ opacity: 0, scale: 0.85, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: 20 }}
+              drag
+              dragMomentum={false}
+              dragElastic={0}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="absolute bottom-16 right-0 w-[340px] sm:w-[380px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col"
+              className="fixed bottom-24 right-6 w-[340px] sm:w-[380px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col"
               style={{ height: "480px" }}
               onPointerDown={(e) => e.stopPropagation()}
             >
@@ -198,7 +191,6 @@ export default function FloatingChatButton() {
                 <div className="flex items-center gap-2">
                   <div
                     className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-white/10 transition-colors"
-                    onPointerDown={(e) => { e.stopPropagation(); dragControls.start(e); }}
                     title="Geser chat"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" opacity="0.7">
@@ -359,8 +351,7 @@ export default function FloatingChatButton() {
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => !isDragging && setIsOpen((prev) => !prev)}
-          onPointerDown={(e) => dragControls.start(e)}
+          onClick={() => setIsOpen((prev) => !prev)}
           className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-shadow cursor-grab active:cursor-grabbing"
           title="Chat Kelas"
         >
