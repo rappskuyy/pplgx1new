@@ -11,20 +11,20 @@ import Jadwal from "./pages/Jadwal";
 import Tugas from "./pages/Tugas";
 import Infaq from "./pages/Infaq";
 import Kelompok from "./pages/Kelompok";
-import Quotes from "./pages/Quotes";
+import FloatingChatButton from "@/components/ui/FloatingChatButton";
 import Galeri from "./pages/Galeri";
 import Tentang from "./pages/Tentang";
 import Struktur from "./pages/Struktur";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import ChatKelas from "./pages/ChatKelas";
 import Karya from "./pages/Karya";
+import Pengumuman from "./pages/Pengumuman";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 menit sebelum data dianggap stale
-      gcTime: 1000 * 60 * 10, // 10 menit garbage collection time
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
     },
   },
 });
@@ -44,15 +44,17 @@ const App = () => (
               <Route path="/tugas" element={<Tugas />} />
               <Route path="/infaq" element={<Infaq />} />
               <Route path="/kelompok" element={<Kelompok />} />
+              <Route path="/pengumuman" element={<Pengumuman />} />
               <Route path="/galeri" element={<Galeri />} />
               <Route path="/tentang" element={<Tentang />} />
               <Route path="/struktur" element={<Struktur />} />
-              <Route path="/chat" element={<ChatKelas />} />
               <Route path="/karya" element={<Karya />} />
               <Route path="/login" element={<Login />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
+          {/* FAB Chat — muncul di semua halaman */}
+          <FloatingChatButton />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

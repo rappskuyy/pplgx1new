@@ -18,7 +18,6 @@ const navLinks = [
   { to: "/kelompok", label: "Kelompok" },
   { to: "/karya", label: "Karya" },
   { to: "/infaq", label: "Infaq" },
-  { to: "/chat", label: "Chat" },
 ];
 
 export default function Navbar() {

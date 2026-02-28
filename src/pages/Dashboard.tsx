@@ -4,17 +4,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import PageTransition from "@/components/PageTransition";
 import { useSiswa, useSchedules, useTasks, useQuotes } from "@/hooks/use-supabase-data";
+import PengumumanWidget from "@/components//ui/PengumumanWidget";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-// Function untuk detect minggu berdasarkan tanggal
 function getMingguAkademik(date: Date): "ganjil" | "genap" {
   const month = date.getMonth() + 1;
   return month >= 7 ? "ganjil" : "genap";
 }
 
-// Hook untuk rotasi quote otomatis
 function useRotatingQuote(quotes: { id: string; text: string; author: string }[], intervalMs = 60000) {
   const [index, setIndex] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -34,7 +33,7 @@ function useRotatingQuote(quotes: { id: string; text: string; author: string }[]
     setTimeout(() => setIsSpinning(false), 600);
   }, [quotes.length]);
 
-  return { quote: quotes[index] ?? null, index, refresh, isSpinning };
+  return { quote: quotes[index] ?? null, refresh, isSpinning };
 }
 
 export default function Dashboard() {
@@ -51,10 +50,8 @@ export default function Dashboard() {
   const todaySchedule = allSchedules.filter((s) => s.hari === todayName);
   const activeTasks = allTasks.filter((t) => !t.selesai);
   const upcomingTasks = activeTasks.filter((t) => new Date(t.deadline) >= today);
-
   const isLoading = loadingSiswa || loadingSchedule || loadingTasks;
 
-  // Rotating quote — ganti tiap 60 detik
   const { quote, refresh, isSpinning } = useRotatingQuote(quotesData, 60000);
 
   return (
@@ -100,11 +97,7 @@ export default function Dashboard() {
               </motion.div>
             </AnimatePresence>
           </div>
-          <button
-            onClick={refresh}
-            title="Ganti quote"
-            className="shrink-0 rounded-lg p-2 text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
-          >
+          <button onClick={refresh} title="Ganti quote" className="shrink-0 rounded-lg p-2 text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors">
             <RefreshCw size={18} className={isSpinning ? "animate-spin" : "transition-transform"} />
           </button>
         </motion.div>
@@ -141,6 +134,11 @@ export default function Dashboard() {
               <p className="text-sm text-violet-200 mt-1">{todayName}</p>
             </motion.div>
           </motion.div>
+
+          {/* Pengumuman Widget — full width */}
+          <div className="mb-6">
+            <PengumumanWidget />
+          </div>
 
           {/* Bottom 2 cols */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
