@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 // =============================================
 const AI_NAME = "Asist X1";
 const KELAS = "PPLG X-1 SMK Wikrama Bogor";
-const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_KEY = "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";
 const OPENROUTER_MODEL = "openai/gpt-5.3-codex";
 // =============================================
 
