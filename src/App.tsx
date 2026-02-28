@@ -44,7 +44,6 @@ const App = () => (
               <Route path="/tugas" element={<Tugas />} />
               <Route path="/infaq" element={<Infaq />} />
               <Route path="/kelompok" element={<Kelompok />} />
-              <Route path="/quotes" element={<Quotes />} />
               <Route path="/galeri" element={<Galeri />} />
               <Route path="/tentang" element={<Tentang />} />
               <Route path="/struktur" element={<Struktur />} />

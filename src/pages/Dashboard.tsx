@@ -1,18 +1,40 @@
 import { Link } from "react-router-dom";
-import { Users, ClipboardList, Calendar, BookOpen, Clock, User, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { Users, ClipboardList, Calendar, BookOpen, Clock, User, Loader2, Quote, RefreshCw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
 import PageTransition from "@/components/PageTransition";
-import { useSiswa, useSchedules, useTasks } from "@/hooks/use-supabase-data";
+import { useSiswa, useSchedules, useTasks, useQuotes } from "@/hooks/use-supabase-data";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 // Function untuk detect minggu berdasarkan tanggal
 function getMingguAkademik(date: Date): "ganjil" | "genap" {
-  // Asumsi: Tahun akademik dimulai bulan Juli
-  // Bulan 7-12 = ganjil, Bulan 1-6 = genap
-  const month = date.getMonth() + 1; // 0-11 jadi 1-12
+  const month = date.getMonth() + 1;
   return month >= 7 ? "ganjil" : "genap";
+}
+
+// Hook untuk rotasi quote otomatis
+function useRotatingQuote(quotes: { id: string; text: string; author: string }[], intervalMs = 60000) {
+  const [index, setIndex] = useState(0);
+  const [isSpinning, setIsSpinning] = useState(false);
+
+  useEffect(() => {
+    if (quotes.length === 0) return;
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % quotes.length);
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [quotes.length, intervalMs]);
+
+  const refresh = useCallback(() => {
+    if (quotes.length === 0) return;
+    setIsSpinning(true);
+    setIndex((prev) => (prev + 1) % quotes.length);
+    setTimeout(() => setIsSpinning(false), 600);
+  }, [quotes.length]);
+
+  return { quote: quotes[index] ?? null, index, refresh, isSpinning };
 }
 
 export default function Dashboard() {
@@ -24,12 +46,16 @@ export default function Dashboard() {
   const { data: siswaData = [], isLoading: loadingSiswa } = useSiswa();
   const { data: allSchedules = [], isLoading: loadingSchedule } = useSchedules(currentMinggu);
   const { data: allTasks = [], isLoading: loadingTasks } = useTasks();
+  const { data: quotesData = [], isLoading: loadingQuotes } = useQuotes();
 
   const todaySchedule = allSchedules.filter((s) => s.hari === todayName);
   const activeTasks = allTasks.filter((t) => !t.selesai);
   const upcomingTasks = activeTasks.filter((t) => new Date(t.deadline) >= today);
 
   const isLoading = loadingSiswa || loadingSchedule || loadingTasks;
+
+  // Rotating quote — ganti tiap 60 detik
+  const { quote, refresh, isSpinning } = useRotatingQuote(quotesData, 60000);
 
   return (
     <PageTransition>
@@ -50,6 +76,39 @@ export default function Dashboard() {
         <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
         <div className="absolute -right-5 -bottom-10 h-60 w-60 rounded-full bg-white/5" />
       </div>
+
+      {/* Quote of the Minute */}
+      {!loadingQuotes && quote && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="relative rounded-xl bg-gradient-to-r from-violet-500/10 to-blue-500/10 border border-violet-200 dark:border-violet-800 p-5 mb-8 flex items-start gap-4"
+        >
+          <Quote size={28} className="text-violet-400 shrink-0 mt-1" />
+          <div className="flex-1 min-w-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={quote.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.4 }}
+              >
+                <p className="text-foreground italic leading-relaxed mb-1">"{quote.text}"</p>
+                <p className="text-sm font-semibold text-violet-500">— {quote.author}</p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <button
+            onClick={refresh}
+            title="Ganti quote"
+            className="shrink-0 rounded-lg p-2 text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+          >
+            <RefreshCw size={18} className={isSpinning ? "animate-spin" : "transition-transform"} />
+          </button>
+        </motion.div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>

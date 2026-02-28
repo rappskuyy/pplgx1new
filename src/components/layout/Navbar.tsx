@@ -9,7 +9,6 @@ import ScheduleNotification from "@/components/ScheduleNotification";
 
 const navLinks = [
   { to: "/", label: "Dashboard" },
-  { to: "/quotes", label: "Quotes" },
   { to: "/galeri", label: "Galeri" },
   { to: "/tentang", label: "Tentang" },
   { to: "/struktur", label: "Struktur" },
