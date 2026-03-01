@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 const AI_NAME = "Asist X1";
 const KELAS = "PPLG X-1 SMK Wikrama Bogor";
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = "google/gemini-3.1-pro-preview";
+const OPENROUTER_MODEL = "openai/gpt-5.3-codex";
 // =============================================
 
 interface Message {
@@ -216,7 +216,7 @@ Tolak pertanyaan di luar topik rombel ${KELAS} dengan sopan.`;
         ...openRouterHistory,
         { role: "user", content: userMessage },
       ],
-      max_tokens: 400,
+      max_tokens: 200,
       temperature: 0.7,
     }),
   });
