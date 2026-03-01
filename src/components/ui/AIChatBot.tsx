@@ -9,8 +9,10 @@ import { supabase } from "@/lib/supabase";
 // =============================================
 const AI_NAME = "Asist X1";
 const KELAS = "PPLG X-1 SMK Wikrama Bogor";
+
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = "openai/gpt-5.3-codex";
 // =============================================
 
 interface Message {
@@ -129,6 +131,71 @@ async function fetchKelasData(): Promise<KelasData> {
   };
 }
 
+
+async function askGroq(systemContext: string, messages: {role: string; content: string}[]): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("No Groq key");
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages: [{ role: "system", content: systemContext }, ...messages],
+      max_tokens: 400, temperature: 0.7,
+    }),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message ?? `Groq ${res.status}`); }
+  const d = await res.json();
+  return d.choices?.[0]?.message?.content ?? "";
+}
+
+async function askGemini(systemContext: string, messages: {role: string; content: string}[]): Promise<string> {
+  if (!GEMINI_API_KEY) throw new Error("No Gemini key");
+  const geminiMessages = messages.map((m, i) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: i === 0 ? systemContext + "\n\n" + m.content : m.content }],
+  }));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: geminiMessages, generationConfig: { maxOutputTokens: 400, temperature: 0.7 } }),
+    }
+  );
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message ?? `Gemini ${res.status}`); }
+  const d = await res.json();
+  return d.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+}
+
+async function askOpenRouterProvider(systemContext: string, messages: {role: string; content: string}[]): Promise<string> {
+  if (!OPENROUTER_API_KEY) throw new Error("No OpenRouter key");
+  const MODELS = ["openai/gpt-5.3-codex", "google/gemini-3.1-pro-preview", "anthropic/claude-sonnet-4.6"];
+  let lastErr = "";
+  for (const model of MODELS) {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": window.location.origin,
+        "X-Title": AI_NAME,
+      },
+      body: JSON.stringify({ model, messages: [{ role: "system", content: systemContext }, ...messages], max_tokens: 200, temperature: 0.7 }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      lastErr = e?.error?.message ?? `HTTP ${res.status}`;
+      if (res.status === 429 || res.status === 402) continue;
+      throw new Error(lastErr);
+    }
+    const d = await res.json();
+    const content = d.choices?.[0]?.message?.content;
+    if (content) return content;
+    lastErr = "empty";
+  }
+  throw new Error("OpenRouter gagal: " + lastErr);
+}
+
 async function askOpenRouter(userMessage: string, kelasData: KelasData, history: Message[]): Promise<string> {
   const month = new Date().getMonth() + 1;
   const minggu = month >= 7 ? "ganjil" : "genap";
@@ -182,7 +249,6 @@ TENTANG ROMBEL PPLG X-1:
 - Deskripsi: Rombel jurusan PPLG yang berfokus pada pengembangan kemampuan siswa di bidang teknologi informasi, pemrograman, software development, UI/UX, dan game development.
 - Kurikulum: Mengikuti standar industri terkini, project-based learning
 - Bahasa pemrograman yang dipelajari: JavaScript, PHP, Python, HTML, CSS
-- Tools: Git, Figma, MySQL
 - Jumlah siswa aktif: 35 siswa
 - Project selesai: 7+
 - Visi: Menjadi rombel unggulan yang menghasilkan lulusan developer berkompeten, berkarakter, dan berdaya saing global
@@ -196,38 +262,31 @@ INFO TAMBAHAN:
 
 Tolak pertanyaan di luar topik rombel ${KELAS} dengan sopan.`;
 
-  const openRouterHistory = history.slice(-6).map((m) => ({
+
+  const chatHistory = history.slice(-6).map((m) => ({
     role: m.role === "assistant" ? "assistant" : "user",
     content: m.content,
   }));
+  const allMessages = [...chatHistory, { role: "user" as const, content: userMessage }];
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-      "HTTP-Referer": window.location.origin,
-      "X-Title": AI_NAME,
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [
-        { role: "system", content: systemContext },
-        ...openRouterHistory,
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 200,
-      temperature: 0.7,
-    }),
-  });
+  // Urutan: Groq → Gemini → OpenRouter
+  const providers = [
+    { name: "Groq", fn: () => askGroq(systemContext, allMessages) },
+    { name: "Gemini", fn: () => askGemini(systemContext, allMessages) },
+    { name: "OpenRouter", fn: () => askOpenRouterProvider(systemContext, allMessages) },
+  ];
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData?.error?.message ?? `HTTP ${res.status}`);
+  for (const provider of providers) {
+    try {
+      console.log(`[AI] Trying ${provider.name}...`);
+      const result = await provider.fn();
+      if (result) return result;
+    } catch (err) {
+      console.warn(`[AI] ${provider.name} failed:`, err instanceof Error ? err.message : err);
+      continue;
+    }
   }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "Maaf, aku tidak bisa menjawab sekarang 😅";
+  throw new Error("Semua AI sedang tidak tersedia 😅");
 }
 
 // =============================================
