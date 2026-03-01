@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 const AI_NAME = "Asist X1";
 const KELAS = "PPLG X-1 SMK Wikrama Bogor";
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = "openai/gpt-5.2-codex";
+const OPENROUTER_MODEL = "google/gemini-3.1-pro-preview";
 // =============================================
 
 interface Message {
