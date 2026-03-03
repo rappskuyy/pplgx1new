@@ -114,6 +114,8 @@ export function useSiswa() {
 export function useSchedules(minggu: string) {
   return useQuery({
     queryKey: ["schedules", minggu],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       try {
         const { data, error } = await supabase

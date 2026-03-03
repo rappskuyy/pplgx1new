@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
 // =============================================
-// KONFIGURASI
+// API KEYS & CONFIG
 // =============================================
 const AI_NAME = "Asist X1";
 const KELAS = "PPLG X-1 SMK Wikrama Bogor";

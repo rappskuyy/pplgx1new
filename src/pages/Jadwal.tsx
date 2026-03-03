@@ -6,12 +6,14 @@ import { useSchedules } from "@/hooks/use-supabase-data";
 
 const daysOfWeek = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
 
-// Function untuk detect minggu berdasarkan tanggal
+// Function untuk detect minggu berdasarkan nomor minggu ISO
 function getMingguAkademik(date: Date): "ganjil" | "genap" {
-  // Asumsi: Tahun akademik dimulai bulan Juli
-  // Bulan 7-12 = ganjil, Bulan 1-6 = genap
-  const month = date.getMonth() + 1;
-  return month >= 7 ? "ganjil" : "genap";
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo % 2 !== 0 ? "ganjil" : "genap";
 }
 
 export default function Jadwal() {

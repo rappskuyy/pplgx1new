@@ -10,8 +10,12 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } }
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 function getMingguAkademik(date: Date): "ganjil" | "genap" {
-  const month = date.getMonth() + 1;
-  return month >= 7 ? "ganjil" : "genap";
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo % 2 !== 0 ? "ganjil" : "genap";
 }
 
 function useRotatingQuote(quotes: { id: string; text: string; author: string }[], intervalMs = 60000) {
@@ -40,7 +44,7 @@ export default function Dashboard() {
   const today = new Date();
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   const todayName = days[today.getDay()];
-  const currentMinggu = getMingguAkademik(today);
+  const currentMinggu = "ganjil" as const;
 
   const { data: siswaData = [], isLoading: loadingSiswa } = useSiswa();
   const { data: allSchedules = [], isLoading: loadingSchedule } = useSchedules(currentMinggu);
