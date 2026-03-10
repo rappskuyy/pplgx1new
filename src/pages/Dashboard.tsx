@@ -44,7 +44,12 @@ export default function Dashboard() {
   const today = new Date();
   const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
   const todayName = days[today.getDay()];
-  const currentMinggu = "ganjil" as const;
+  const currentMinggu = (() => {
+    const now = today;
+    const start = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
+    return (weekNum % 2 === 0 ? "ganjil" : "genap") as "ganjil" | "genap";
+  })();
 
   const { data: siswaData = [], isLoading: loadingSiswa } = useSiswa();
   const { data: allSchedules = [], isLoading: loadingSchedule } = useSchedules(currentMinggu);
